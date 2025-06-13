@@ -23,3 +23,48 @@ const passport = require('passport');
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+/*Mongoose setup*/
+const mongoose = require('mongoose');
+const passportLocalMongoose = require('passport-local-mongoose');
+
+mongoose.connect('mongodb://localhost/MyDatabase',
+    { useNewUrlParser: true, useUnifiedTopology: true });
+
+const Schema = mongoose.Schema;
+const UserDetail = new Schema({
+    username: String,
+    password: String
+});
+
+UserDetail.plugin(passportLocalMongoose);
+const UserDetails = mongoose.model('userInfo', UserDetail, 'userInfo');
+
+/*passport local Authentication*/
+
+passport.use(UserDetails.createStrategy());
+
+passport.serializeUser(UserDetails.serializeUser());
+passport.deserializeUser(UserDetails.deserializeUser());
+
+/*Routes*/
+
+const connectEnsureLogin = require('connect-ensure-login');
+
+app.post('/login',(req, res, next) => {
+    passport.authenticate('local',
+        (err, user, info) => {
+            if (err) {
+                return next(err);
+            }
+            if (!user) {
+                return res.redirect('/login?info=' + info);
+            }
+            req.logIn(user,function(err) {
+                if (err) {
+                return next(err);
+            }
+            return res.redirect('/');
+            });
+        })(req, res, next);
+});
